@@ -54,8 +54,8 @@ def split_gpt_output(gpt_output):
 def extract_gpt_answer(gpt_output):
     outdict = split_gpt_output(gpt_output)
 
-    has_relevant_token = "RELEVANT" in outdict["RELEVANCE"]
-    has_offtopic_token = "OFFTOPIC" in outdict["RELEVANCE"]
+    has_relevant_token = "RELEVANT" in outdict.get("RELEVANCE", "")
+    has_offtopic_token = "OFFTOPIC" in outdict.get("RELEVANCE", "")
     if (not has_relevant_token and not has_offtopic_token) or (
         has_relevant_token and has_offtopic_token
     ):
@@ -64,11 +64,11 @@ def extract_gpt_answer(gpt_output):
     if has_offtopic_token:
         return None
 
-    has_absent_token = "ABSENT" in outdict["AVAILABILITY"]
+    has_absent_token = "ABSENT" in outdict.get("AVAILABILITY", "")
     if has_absent_token:
         return None
 
-    answer = outdict["ANSWER"]
+    answer = outdict.get("ANSWER")
     return answer
 
 
@@ -85,6 +85,7 @@ def ask_gpt_question(question, document, document_description):
     responseobj = openai.ChatCompletion.create(
         messages=gpt_messages, model="gpt-4", temperature=0
     )
+    # TODO: Check for errors and wrap this in retries.
     gpt_output = responseobj["choices"][0]["message"]["content"]
     answer = extract_gpt_answer(gpt_output)
 
