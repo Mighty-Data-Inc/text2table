@@ -25,10 +25,10 @@ The piece of information I'd like you to extract is: {question}
 Present your response in Markdown format, using the following multi-part structure: RELEVANCE, AVAILABILITY, DISCUSSION, and ANSWER. Each part will begin with its header, followed by your content.
 
 # RELEVANCE
-Here, you will determine whether or not the desired piece of information is relevant to the subject matter of the document. You will ultimately write either RELEVANT (it's relevant), or OFFTOPIC (it's off-topic).
+Here, you will determine whether or not the desired piece of information is relevant to the subject matter of the document. You will ultimately write, in all caps, either RELEVANT (it's relevant), or OFFTOPIC (it's off-topic).
 
 # AVAILABILITY
-Here, you will determine whether or not the desired information is present in the document. You will ultimately write one of the following: STATED (the information is explicitly stated in the document), IMPLIED (the information is implied by other content in the document), or ABSENT (the information cannot be determined from the document).
+Here, you will determine whether or not the desired information is present in the document. You will ultimately write, in all caps, one of the following: STATED (the information is explicitly stated in the document), IMPLIED (the information is implied by other content in the document), or ABSENT (the information cannot be determined from the document).
 
 # COMPUTATION
 If the problem requires any kind of counting, enumeration, calculation, or so forth, then you can use this section as a scratchpad upon which to work out your math. If the problem doesn't require any such processes, then you can simply skip this section if you wish.
