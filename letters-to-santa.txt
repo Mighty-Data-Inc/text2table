@@ -1,0 +1,124 @@
+Dear Santa, I have been trying to be a responsible person. I hope I would get what I always wanted. The thing I want most is a dog. dog. dog. I know I haven’t been taking care of my Giga dog but it is not real and a dog would be. Santa, I would even trade my one and only Mom for a dog. I knew that a dog would be a big responsibility but I have been bugging my Dad since I was three and I’m tired of it! Love, Megan
+
+
+Frillo 
+
+
+
+somefunc(doc, questions=dict(
+    name="What is the child's name?",
+    age=dict(
+      question="How old is the child?",
+      format=type(int),
+      units="years",
+      temperature=0.2,
+      reject_implied=True
+    ),
+    present_desired="What present or presents does the child want?",
+    misspellings_count="How many misspellings or grammatical mistakes did the child make?"
+  ),
+  document_description="A letter from a child to Santa Claus",
+  response_timeout=30,
+  model="gpt-4"
+)
+
+
+
+
+
+{
+  "name": "Megan",
+  "age": null,
+  "present_desired": "dog",
+  "socioeconomic_level": null,
+  "is_child_nice": null,
+  "is_child_naughty": false,
+  "misspellings_count": 0,
+}
+
+
+     name   age   present   econ
+doc1
+doc2
+doc3
+.
+.
+.
+.
+
+
+
+
+Dear Santa, I am not eating my boogers anymore. So now you can bring me some toys please. I want a cat toy that plays with you. Thank you, your friend, Rayne.
+
+
+
+Dear Santa, I want to thank you for giving me my Grandpa back to me last Christmas, he came home Christmas eve, but sadly he died Jan. 1. But you gave me my speail gift, my Grandpa for Christmas. Thank you. I live with Grandma and we are OK. All I want is frozen shoe’s and a outfit. Thank you. Love you, Sara
+
+
+
+Dear Santa Claus, Did you live when the dinosaurs lived? I want a giga dog. I want a barbie house and a puppy. Love, Jessica.
+
+
+
+Dear Santa, This year I have been good. You should come because I haven’t hit my sister with my fourweeler. I would like a t.v. because I’m always bored in my room. I would like a Nerf gun because my cosusin is getting one from my family. Is Rudolph real? How do your reindeer fly. Love, Townsend.
+
+
+
+Dear Santa Claus, My name is Yadiel and I am 4 years old. I’m from Dominican parents, but I borned in the United States. I wish you to give me something for Chritsmas. My parents do not have enough money for buy me something. My dad is the only one that is working and my mom is pregnant. My sister, Yazlyn, will born is Chritsmas and I will love if you send her something too for Chritsmas. It will mean something big to me if you send her something. My sizes in clothes are the following: coats, t-shirts, swetters: 4t. Pants, pajamas, and interior clothes: 4t. Sneakers, boots and shoes: 11.5. I am a little friendfull (friendly) and loving boy. I’ve been a good boy this whole year. I got good news for you. I can sleep without doing pee in my bed since June. With Love, Yadiel.
+
+
+
+Dear Santa and helpers, I have been very good this year. I am expecting a little sister. I don’t want her. Momy says her will be fun. I heard girls stink. I will trade you my sister when she comes from the stork for a elf. I want a race car and a Garage set for Christmas. There will be sugar cookies and burritos waiting for you. Thank you, Santa. Craig.
+
+
+
+Dear Santa, Dont worry about me this year. I already have what I want. And she’s standing right next to me. Your friend, Taylor.
+
+
+
+How do you get inside the house if the door is locked and there are no chimneys?
+
+
+
+Dear Santa claus, I want a plasma flat screen TV. I have been nice all year. I just want to spend time with my family. And I rember your lack toase and tolrit so I got you soy mik and choclate chip cookies. I will always believe in you I put my name neat. Your friend, Nora.
+
+
+
+Make a note back please.
+
+
+
+Dear Santa, We have your shoes. Did you leave them here on accedent? I think you did. Love, Vincent.
+
+
+
+Love youre little Elve Krista.
+
+
+
+Hi Santa I know it’s early but I not asking for a gift I am asking for a dog I really really want a dog this summer I want a yellow lab puppy I also have a question for you when I saw my uncle and his girlfriend put those presents in my mom’s car were those presents yours you just had drop them because you had to bring gifts to all the kids in Pendleton so you had them at my grandmas house and then my uncle and his girlfriend had to hide them from me why did they hide them from me Santa why
+
+
+
+Dear Santa, Please bring me a Shirley Temple doll. and I will take good care of her. She can sleep in my doll bed. And eat at my little table.
+
+
+
+Dear Santa, Where are You?
+
+
+
+Dear Santa Clause, This is what I want fore Christmas. I want a sleeping bag, a pink nightgown, monoply, bracelet, neckles, sled, a new bed, That’s what I want for Christmas. Love Debbie. P.S. Why do you come bown the chimney. Answer.
+
+
+
+
+
+
+
+
+
+
+
+
