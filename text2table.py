@@ -2,6 +2,8 @@ import json
 import openai
 import re
 
+from typing import Iterable
+
 
 sample_input = """
 Dear Santa Claus, My name is Yadiel and I am 4 years old. I'm from Dominican parents, but I borned in the United States. I wish you to give me something for Chritsmas. My parents do not have enough money for buy me something. My dad is the only one that is working and my mom is pregnant. My sister, Yazlyn, will born is Chritsmas and I will love if you send her something too for Chritsmas. It will mean something big to me if you send her something. My sizes in clothes are the following: coats, t-shirts, swetters: 4t. Pants, pajamas, and interior clothes: 4t. Sneakers, boots and shoes: 11.5. I am a little friendfull (friendly) and loving boy. I've been a good boy this whole year. I got good news for you. I can sleep without doing pee in my bed since June. With Love, Yadiel.
@@ -20,13 +22,13 @@ I will present a short document to you. You will read this document and then ext
 {section_docdescr}
 The piece of information I'd like you to extract is: {question}
 
-I'd like you to present your response in Markdown format, using the following multi-part structure: RELEVANCE, AVAILABILITY, DISCUSSION, and ANSWER. Each part will begin with its header, followed by your content.
+Present your response in Markdown format, using the following multi-part structure: RELEVANCE, AVAILABILITY, DISCUSSION, and ANSWER. Each part will begin with its header, followed by your content.
 
 # RELEVANCE
-Here, you will determine whether or not the desired piece of information is relevant to the subject matter of the document. You will ultimately write either RELEVANT (it's relevant), or OFFTOPIC (it's off-topic). If you determine the information to be OFFTOPIC, then you can stop working here and don't need to fill in the rest of the sections.
+Here, you will determine whether or not the desired piece of information is relevant to the subject matter of the document. You will ultimately write either RELEVANT (it's relevant), or OFFTOPIC (it's off-topic).
 
 # AVAILABILITY
-Here, you will determine whether or not the desired information is present in the document. You will ultimately write one of the following: STATED (the information is explicitly stated in the document), IMPLIED (the information is implied by other content in the document), or ABSENT (the information cannot be determined from the document). If you determine the information to be ABSENT, then you can stop working here and don't need to fill in the rest of the sections.
+Here, you will determine whether or not the desired information is present in the document. You will ultimately write one of the following: STATED (the information is explicitly stated in the document), IMPLIED (the information is implied by other content in the document), or ABSENT (the information cannot be determined from the document).
 
 # COMPUTATION
 If the problem requires any kind of counting, enumeration, calculation, or so forth, then you can use this section as a scratchpad upon which to work out your math. If the problem doesn't require any such processes, then you can simply skip this section if you wish.
@@ -89,7 +91,9 @@ def ask_gpt_question(question, document, document_description):
     return answer
 
 
-def text2data(document, questions, document_description):
+def extract_dict_from_document(
+    document: str, questions: Iterable[str], document_description: str = None
+):
     retval = {}
     for k, v in questions.items():
         print(k, end="")
@@ -99,7 +103,7 @@ def text2data(document, questions, document_description):
     return retval
 
 
-retval = text2data(
+retval = extract_dict_from_document(
     sample_input,
     questions=dict(
         name="What is the child's name?",
