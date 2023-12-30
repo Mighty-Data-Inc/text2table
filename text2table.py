@@ -1,13 +1,53 @@
 import json
 import openai
 import re
+import time
 
-from typing import Iterable
+from typing import Dict, Iterable, List, Optional, Union
 
 
 sample_input = """
 Dear Santa Claus, My name is Yadiel and I am 4 years old. I'm from Dominican parents, but I borned in the United States. I wish you to give me something for Chritsmas. My parents do not have enough money for buy me something. My dad is the only one that is working and my mom is pregnant. My sister, Yazlyn, will born is Chritsmas and I will love if you send her something too for Chritsmas. It will mean something big to me if you send her something. My sizes in clothes are the following: coats, t-shirts, swetters: 4t. Pants, pajamas, and interior clothes: 4t. Sneakers, boots and shoes: 11.5. I am a little friendfull (friendly) and loving boy. I've been a good boy this whole year. I got good news for you. I can sleep without doing pee in my bed since June. With Love, Yadiel.
 """
+
+
+def send_gpt_chat(
+    messages: Union[str, Iterable],
+    *,
+    openai_client: openai.OpenAI,
+    model: str,
+    timeout: Union[float, openai.Timeout, None] = None,
+    retries: int = 3,
+    throttle: float = 3.0
+):
+    if type(messages) == str:
+        messages = [{"role": "user", "content": messages}]
+
+    while retries > 0:
+        retries -= 1
+        try:
+            response = openai_client.chat.completions.create(
+                messages=messages,
+                model=model,
+                temperature=0,
+                timeout=timeout
+            )
+            if not response or not response.choices or not len(response.choices):
+                return None
+            if response.choices[0].finish_reason != "stop":
+                return None
+            return response.choices[0].message.content
+
+        except openai.APITimeoutError:
+            pass
+        except openai.InternalServerError:
+            pass
+        except openai.RateLimitError:
+            pass
+
+        if throttle:
+            time.sleep(throttle)
+
 
 
 def create_systemprompt(question: str, document_description: str = None) -> str:
@@ -104,14 +144,126 @@ def extract_dict_from_document(
     return retval
 
 
-retval = extract_dict_from_document(
-    sample_input,
-    questions=dict(
-        name="What is the child's name?",
-        present_desired="What present or presents does the child want?",
-        misspellings_count="How many misspellings or grammatical mistakes did the child make?",
-    ),
-    document_description="A letter from a child to Santa Claus",
+def determine_datatypes(
+    questions: Dict[str, str],
+    *,
+    openai_client: openai.OpenAI,
+    document_description: Optional[str] = None
+):
+    if type(document_description) == tuple:
+        document_description = document_description[0]
+
+    prompt = (
+        "I'm a programmer who's writing a data ingestion script for a client. "
+        "I need your help to determine the best variable types with which to represent "
+        "the data that the client wants to extract.\n\n"
+        "The client will give me a series of documents. I haven't seen the documents myself "
+        "yet, but I know that there will be hundreds of them. "
+    )
+    if document_description:
+        prompt += "Each document can best be described as: " + document_description
+
+    prompt += (
+        "\n\nFrom each document, I need to extract the following variables:\n\n"
+    )
+
+    for questionkey, questiontext in questions.items():
+        prompt += f"- **{questionkey}**: {questiontext}\n"
+
+    prompt += (
+        "\nI need to pick an appropriate data type for each variable. "
+        "I have a fixed set of data types at my disposal. The data types I can use "
+        "are as follows:\n\n"
+        "- **int**\n"
+        "- **float**\n"
+        "- **str**\n"
+        "- **List(int)** (i.e. a list of integers)\n"
+        "- **List(float)** (i.e. a list of floats)\n"
+        "- **List(str)** (i.e. a list of strings)\n"
+        "- **date** (i.e. a calendar date, in YYYY-MM-DD format)\n"
+        "- **datetime** (i.e. a Python datetime.datetime object)\n"
+        "- **timedelta** (i.e. a Python datetime.timedelta object)\n"
+        "- **enum(\"VALUE_1\", \"VALUE_2\", ...)** (i.e. an enum with a set number of possible values, each of which is denoted with a string)\n"
+        "\nFor numerical data types, I also have the option to provide a string that indicates the number's units.\n\n"
+    )
+
+    prompt += (
+        "I'd like you to go through each variable, one at a time, and determine which of the "
+        "above data types would be most appropriate for it. You will provide the name of the "
+        "variable, a brief discussion about what its best data type might be, a datatype, and "
+        "a unit label (if appropriate). In some cases, you might even choose an appropriate default value. "
+        "As such, for each variable, your reply will look like this:\n"
+        "\n"
+        "VARIABLE: name_of_variable\n"
+        "DISCUSSION: Here you discuss which of the available data types would best suit this variable.\n"
+        "DATATYPE: one of the above data types\n"
+        "UNITS: for numerical types, a label indicating what units the variable's value will represent\n"
+        "DEFAULT: a default value, if one seems appropriate\n"
+        "\n"
+        "Here are a few examples:\n"
+        "\n"
+        "VARIABLE: bank_account_balance\n"
+        "DISCUSSION: A bank account is represented by a scalar numerical value. We don't know the currency, "
+            "so we will assume USD because it's the most commonly used currency in the world. "
+            "To represent cents, we need decimal support; as such, a floating-point value is the most "
+            "appropriate choice. As for default value, we'll choose a round number for a typical "
+            "checking account balance.\n"
+        "DATATYPE: float\n"
+        "UNITS: U.S. Dollars (US$)\n"
+        "DEFAULT: 10000.0\n"
+        "\n"
+        "VARIABLE: us_coin\n"
+        "DISCUSSION: The US Mint only makes a few denominations of coins, so an enum would be the most appropriate.\n"
+        "DATATYPE: enum(\"PENNY\", \"NICKEL\", \"DIME\", \"QUARTER\", \"HALFDOLLAR\", \"SILVERDOLLAR\")\n"
+        "UNITS: N/A\n"
+        "DEFAULT: N/A"
+    )
+
+    # The timeout should be proportional to the number of questions.
+    # Each question really shouldn't take more than five seconds max
+    # to determine the data type.
+    timeout = 10 + 5 * len(questions)
+
+    reply = send_gpt_chat(
+        messages=prompt,
+        timeout=timeout,
+        model="gpt-3.5-turbo-16k",
+        openai_client=openai_client
+    )
+
+    print(reply)
+
+
+SECRETS = {}
+with open("secrets.json") as f:
+    SECRETS = json.load(f)
+
+openai_client = openai.OpenAI(
+    api_key=SECRETS["OPENAI_API_KEY"],
+    organization=SECRETS.get("OPENAI_ORGANIZATION")
+)
+
+
+questions = dict(
+    name="What is the child's name?",
+    age="How old are they?",
+    wealth="What socioeconomic bracket are they in?",
+    present_desired="What present or presents do they want?",
+    misspellings_count="How many misspellings or grammatical mistakes did they make?",
+)
+document_description="A letter from a child to Santa Claus",
+
+#retval = extract_dict_from_document(
+#    sample_input,
+#    questions=questions,
+#    document_description=document_description
+#)
+
+
+retval = determine_datatypes(
+    questions=questions,
+    document_description=document_description,
+    openai_client=openai_client
 )
 
 print(retval)
