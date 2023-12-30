@@ -5,7 +5,6 @@ import time
 
 from typing import Dict, Iterable, List, Optional, Union
 
-
 sample_input = """
 Dear Santa Claus, My name is Yadiel and I am 4 years old. I'm from Dominican parents, but I borned in the United States. I wish you to give me something for Chritsmas. My parents do not have enough money for buy me something. My dad is the only one that is working and my mom is pregnant. My sister, Yazlyn, will born is Chritsmas and I will love if you send her something too for Chritsmas. It will mean something big to me if you send her something. My sizes in clothes are the following: coats, t-shirts, swetters: 4t. Pants, pajamas, and interior clothes: 4t. Sneakers, boots and shoes: 11.5. I am a little friendfull (friendly) and loving boy. I've been a good boy this whole year. I got good news for you. I can sleep without doing pee in my bed since June. With Love, Yadiel.
 """
@@ -18,7 +17,7 @@ def send_gpt_chat(
     model: str,
     timeout: Union[float, openai.Timeout, None] = None,
     retries: int = 3,
-    throttle: float = 3.0
+    throttle: float = 3.0,
 ):
     if type(messages) == str:
         messages = [{"role": "user", "content": messages}]
@@ -27,10 +26,7 @@ def send_gpt_chat(
         retries -= 1
         try:
             response = openai_client.chat.completions.create(
-                messages=messages,
-                model=model,
-                temperature=0,
-                timeout=timeout
+                messages=messages, model=model, temperature=0, timeout=timeout
             )
             if not response or not response.choices or not len(response.choices):
                 return None
@@ -47,7 +43,6 @@ def send_gpt_chat(
 
         if throttle:
             time.sleep(throttle)
-
 
 
 def create_systemprompt(question: str, document_description: str = None) -> str:
@@ -148,7 +143,7 @@ def determine_datatypes(
     questions: Dict[str, str],
     *,
     openai_client: openai.OpenAI,
-    document_description: Optional[str] = None
+    document_description: Optional[str] = None,
 ):
     if type(document_description) == tuple:
         document_description = document_description[0]
@@ -163,9 +158,7 @@ def determine_datatypes(
     if document_description:
         prompt += "Each document can best be described as: " + document_description
 
-    prompt += (
-        "\n\nFrom each document, I need to extract the following variables:\n\n"
-    )
+    prompt += "\n\nFrom each document, I need to extract the following variables:\n\n"
 
     for questionkey, questiontext in questions.items():
         prompt += f"- **{questionkey}**: {questiontext}\n"
@@ -183,7 +176,7 @@ def determine_datatypes(
         "- **date** (i.e. a calendar date, in YYYY-MM-DD format)\n"
         "- **datetime** (i.e. a Python datetime.datetime object)\n"
         "- **timedelta** (i.e. a Python datetime.timedelta object)\n"
-        "- **enum(\"VALUE_1\", \"VALUE_2\", ...)** (i.e. an enum with a set number of possible values, each of which is denoted with a string)\n"
+        '- **enum("VALUE_1", "VALUE_2", ...)** (i.e. an enum with a set number of possible values, each of which is denoted with a string)\n'
         "\nFor numerical data types, I also have the option to provide a string that indicates the number's units.\n\n"
     )
 
@@ -204,17 +197,17 @@ def determine_datatypes(
         "\n"
         "VARIABLE: bank_account_balance\n"
         "DISCUSSION: A bank account is represented by a scalar numerical value. We don't know the currency, "
-            "so we will assume USD because it's the most commonly used currency in the world. "
-            "To represent cents, we need decimal support; as such, a floating-point value is the most "
-            "appropriate choice. As for default value, we'll choose a round number for a typical "
-            "checking account balance.\n"
+        "so we will assume USD because it's the most commonly used currency in the world. "
+        "To represent cents, we need decimal support; as such, a floating-point value is the most "
+        "appropriate choice. As for default value, we'll choose a round number for a typical "
+        "checking account balance.\n"
         "DATATYPE: float\n"
         "UNITS: U.S. Dollars (US$)\n"
         "DEFAULT: 10000.0\n"
         "\n"
         "VARIABLE: us_coin\n"
         "DISCUSSION: The US Mint only makes a few denominations of coins, so an enum would be the most appropriate.\n"
-        "DATATYPE: enum(\"PENNY\", \"NICKEL\", \"DIME\", \"QUARTER\", \"HALFDOLLAR\", \"SILVERDOLLAR\")\n"
+        'DATATYPE: enum("PENNY", "NICKEL", "DIME", "QUARTER", "HALFDOLLAR", "SILVERDOLLAR")\n'
         "UNITS: N/A\n"
         "DEFAULT: N/A"
     )
@@ -228,7 +221,7 @@ def determine_datatypes(
         messages=prompt,
         timeout=timeout,
         model="gpt-3.5-turbo-16k",
-        openai_client=openai_client
+        openai_client=openai_client,
     )
 
     print(reply)
@@ -239,8 +232,7 @@ with open("secrets.json") as f:
     SECRETS = json.load(f)
 
 openai_client = openai.OpenAI(
-    api_key=SECRETS["OPENAI_API_KEY"],
-    organization=SECRETS.get("OPENAI_ORGANIZATION")
+    api_key=SECRETS["OPENAI_API_KEY"], organization=SECRETS.get("OPENAI_ORGANIZATION")
 )
 
 
@@ -251,19 +243,19 @@ questions = dict(
     present_desired="What present or presents do they want?",
     misspellings_count="How many misspellings or grammatical mistakes did they make?",
 )
-document_description="A letter from a child to Santa Claus",
+document_description = ("A letter from a child to Santa Claus",)
 
-#retval = extract_dict_from_document(
+# retval = extract_dict_from_document(
 #    sample_input,
 #    questions=questions,
 #    document_description=document_description
-#)
+# )
 
 
 retval = determine_datatypes(
     questions=questions,
     document_description=document_description,
-    openai_client=openai_client
+    openai_client=openai_client,
 )
 
 print(retval)
