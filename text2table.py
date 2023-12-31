@@ -1,7 +1,10 @@
+import datetime
 import json
 import openai
 import re
 import time
+
+from question import Question
 
 from typing import Dict, Iterable, List, Optional, Union
 
@@ -140,11 +143,11 @@ def extract_dict_from_document(
 
 
 def determine_datatypes(
-    questions: Dict[str, str],
+    questions: List[Question],
     *,
     openai_client: openai.OpenAI,
     document_description: Optional[str] = None,
-):
+) -> List[Question]:
     if type(document_description) == tuple:
         document_description = document_description[0]
 
@@ -160,8 +163,8 @@ def determine_datatypes(
 
     prompt += "\n\nFrom each document, I need to extract the following variables:\n\n"
 
-    for questionkey, questiontext in questions.items():
-        prompt += f"- **{questionkey}**: {questiontext}\n"
+    for question in questions:
+        prompt += f"- **{question.key}**: {question.text}\n"
 
     prompt += (
         "\nI need to pick an appropriate data type for each variable. "
@@ -170,10 +173,10 @@ def determine_datatypes(
         "- **int**\n"
         "- **float**\n"
         "- **str**\n"
-        "- **List(int)** (i.e. a list of integers)\n"
-        "- **List(float)** (i.e. a list of floats)\n"
-        "- **List(str)** (i.e. a list of strings)\n"
-        "- **date** (i.e. a calendar date, in YYYY-MM-DD format)\n"
+        "- **List[int]** (i.e. a list of integers)\n"
+        "- **List[float]** (i.e. a list of floats)\n"
+        "- **List[str]** (i.e. a list of strings)\n"
+        "- **date** (i.e. a Python datetime.date object)\n"
         "- **datetime** (i.e. a Python datetime.datetime object)\n"
         "- **timedelta** (i.e. a Python datetime.timedelta object)\n"
         '- **enum("VALUE_1", "VALUE_2", ...)** (i.e. an enum with a set number of possible values, each of which is denoted with a string)\n'
@@ -224,7 +227,71 @@ def determine_datatypes(
         openai_client=openai_client,
     )
 
-    print(reply)
+    reply_lines = reply.split("\n")
+    q_by_key = {q.key: q for q in questions}
+    q_current = None
+    for line in reply_lines:
+        if ":" not in line:
+            continue
+        line = line.strip()
+        fieldname, fieldvalue = line.split(":", maxsplit=1)
+        fieldname = fieldname.strip()
+        fieldvalue = fieldvalue.strip()
+
+        if fieldvalue.upper() == "N/A":
+            continue
+
+        if fieldname.upper() == "VARIABLE":
+            q_current = q_by_key.get(fieldvalue)
+            continue
+
+        if not q_current:
+            continue
+
+        if fieldname.upper() == "DISCUSSION":
+            if not q_current.explanation:
+                q_current.explanation = fieldvalue
+
+        elif fieldname.upper() == "UNITS":
+            if not q_current.unitlabel:
+                q_current.unitlabel = fieldvalue
+
+        elif fieldname.upper() == "DEFAULT":
+            if not q_current.defaultvalue:
+                q_current.defaultvalue = fieldvalue
+
+        elif fieldname.upper() == "DATATYPE":
+            if not q_current.datatype:
+                if fieldvalue == "int":
+                    q_current.datatype = int
+                elif fieldvalue == "float":
+                    q_current.datatype = float
+                elif fieldvalue == "str":
+                    q_current.datatype = str
+                if fieldvalue == "List[int]":
+                    q_current.datatype = List[str]
+                elif fieldvalue == "List[float]":
+                    q_current.datatype = List[float]
+                elif fieldvalue == "List[str]":
+                    q_current.datatype = List[str]
+                elif fieldvalue == "date":
+                    q_current.datatype = datetime.date
+                elif fieldvalue == "datetime":
+                    q_current.datatype = datetime.datetime
+                elif fieldvalue == "timedelta":
+                    q_current.datatype = datetime.timedelta
+                elif fieldvalue.startswith("enum"):
+                    valueliststr = "[" + fieldvalue[5:-1] + "]"
+                    try:
+                        q_current.datatype = json.loads(valueliststr)
+                    except:
+                        pass
+
+    for q in questions:
+        if q.defaultvalue is not None and q.datatype is not None:
+            q.defaultvalue = q.coerce_to_my_datatype(q.defaultvalue)
+
+    return questions
 
 
 SECRETS = {}
@@ -236,26 +303,32 @@ openai_client = openai.OpenAI(
 )
 
 
+document_description = "A letter from a child to Santa Claus"
+
+
 questions = dict(
     name="What is the child's name?",
     age="How old are they?",
-    wealth="What socioeconomic bracket are they in?",
+    wealth={
+        "text": "What socioeconomic bracket are they in?",
+        "datatype": ["POOR", "MIDDLECLASS", "RICH"],
+    },
     present_desired="What present or presents do they want?",
     misspellings_count="How many misspellings or grammatical mistakes did they make?",
 )
-document_description = ("A letter from a child to Santa Claus",)
+questions = Question.create_collection(questions)
+
+questions = determine_datatypes(
+    questions=questions,
+    document_description=document_description,
+    openai_client=openai_client,
+)
+
+for q in questions:
+    print(q)
 
 # retval = extract_dict_from_document(
 #    sample_input,
 #    questions=questions,
 #    document_description=document_description
 # )
-
-
-retval = determine_datatypes(
-    questions=questions,
-    document_description=document_description,
-    openai_client=openai_client,
-)
-
-print(retval)
