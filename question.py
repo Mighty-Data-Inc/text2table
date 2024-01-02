@@ -13,6 +13,7 @@ class Question:
         defaultvalue: Optional[Any] = None,
         unitlabel: str = "",
         explanation: str = "",
+        required: bool = False,
     ):
         self.key = f"{key}".strip()
         self.text = f"{text}".strip()
@@ -22,10 +23,14 @@ class Question:
         self.unitlabel = f"{unitlabel}".strip()
         self.explanation = f"{explanation}".strip()
 
+        self.required = required
+
     def __str__(self):
         s = ""
         if self.key:
             s += self.key
+        if self.required:
+            s += "*"
         if self.text:
             if s:
                 s = s + ": "
@@ -97,6 +102,46 @@ class Question:
         except ValueError:
             return None
 
+    def instructions_for_my_datatype(self):
+        return Question.instructions_for_datatype(self.datatype)
+
+    @staticmethod
+    def instructions_for_datatype(datatype: Any):
+        if datatype == str:
+            return 'a JSON string (e.g. "foo")'
+
+        elif datatype == int:
+            return "an int (e.g. 5)"
+
+        elif datatype == float:
+            return "a floating-point decimal value (e.g. 123.45)"
+
+        elif datatype == List[str]:
+            return 'a JSON list of strings (e.g. ["foo", "bar", "baz"])'
+
+        elif datatype == List[int]:
+            return "a JSON list of integers (e.g. [23, 55, 777])"
+
+        elif datatype == List[float]:
+            return "a JSON list of floating-point decimal values (e.g. [23.5, 55.0, 777.777])"
+
+        elif datatype == datetime.date:
+            return 'a JSON object indicating the year, month, and day, with all values being integers and negative years indicating BC (e.g. Jan 12, 2015 would be {"year": 2015, "month": 1, "day": 12})'
+
+        elif datatype == datetime.datetime:
+            return 'a JSON object indicating the year, month, day, hour, minute, and second, with all values being integers except for seconds which are float (e.g. 4:15:00 PM on Jan 12, 2015 would be {"year": 2015, "month": 1, "day": 12, "hour": 16, "minute": 15, "second": 0.0})'
+
+        elif datatype == datetime.timedelta:
+            return 'a JSON object indicating a span of years, months, days, hours, minutes, and seconds, with all values being integers except for seconds which are float (e.g. a difference of 2 years, 3 months, and 6-and-a-half hours would be {"years": 2, "month": 3, "hours": 6, "minutes": 30, "seconds": 0.0})'
+
+        elif type(datatype) == list:
+            s = " a JSON string containing exactly one of the following values, written exactly as follows: "
+            s += ",".join([f'"{x}"' for x in datatype])
+            return s
+
+        else:
+            return "unspecified"
+
     @staticmethod
     def create_from(
         x: Union[
@@ -116,6 +161,7 @@ class Question:
                 defaultvalue=x.defaultvalue,
                 unitlabel=x.unitlabel,
                 explanation=x.explanation,
+                required=x.required,
             )
             return retval
 
@@ -127,6 +173,7 @@ class Question:
                 defaultvalue=x.get("defaultvalue"),
                 unitlabel=x.get("unitlabel") or "",
                 explanation=x.get("explanation") or "",
+                required=x.get("required") or False,
             )
             return retval
 
@@ -153,6 +200,13 @@ class Question:
 
     @staticmethod
     def create_collection(questions: Union[List[Any], Dict[str, Any]]):
+        if questions is None:
+            return []
+
+        if type(questions) == str or isinstance(questions, Question):
+            # We've been given a single instance instead of a collection.
+            questions = [questions]
+
         if type(questions) == dict:
             questions = [
                 (questionkey, questiontext)

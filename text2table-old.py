@@ -4,7 +4,6 @@ import openai
 import re
 import time
 
-from document import Document
 from question import Question
 
 from typing import Dict, Iterable, List, Optional, Union
@@ -47,6 +46,114 @@ def send_gpt_chat(
 
         if throttle:
             time.sleep(throttle)
+
+
+def create_systemprompt(question: Question, document_description: str = None) -> str:
+    systemprompt = ""
+
+    systemprompt += (
+        "I will present a short document to you. You will read this document "
+        "and then extract a single piece of information from that document. "
+        "You will be graded on your reasoning process and your ability to "
+        "justify your answer.\n\n"
+    )
+
+    if document_description:
+        systemprompt += f"The document can be described as: {document_description}\n\n"
+
+    systemprompt += f"""
+The piece of information I'd like you to extract is: {question.text}
+
+Present your response in Markdown format, using the following multi-part structure: RELEVANCE, AVAILABILITY, DISCUSSION, and ANSWER. Each part will begin with its header, followed by your content.
+
+# RELEVANCE
+Here, you will determine whether or not the desired piece of information is relevant to the subject matter of the document. You will ultimately write, in all caps, either RELEVANT (it's relevant), or OFFTOPIC (it's off-topic).
+
+# AVAILABILITY
+Here, you will determine whether or not the desired information is present in the document. You will ultimately write, in all caps, one of the following: STATED (the information is explicitly stated in the document), IMPLIED (the information is implied by other content in the document), or ABSENT (the information cannot be determined from the document).
+
+# COMPUTATION
+If the problem requires any kind of counting, enumeration, calculation, or so forth, then you can use this section as a scratchpad upon which to work out your math. If the problem doesn't require any such processes, then you can simply skip this section if you wish.
+
+# DISCUSSION
+Here, you will discuss what your final answer will be. You will give arguments about why the answer might be one thing or another.
+
+# ANSWER
+Here, you will state your final answer in a succinct manner, with no other text, as if you are going to enter the value into a form.
+
+"""
+
+    if question.datatype is not None:
+        systemprompt += "You will present your final answer in the following format: "
+        systemprompt += question.instructions_for_my_datatype()
+        systemprompt += "\n\n"
+
+    if question.required:
+        systemprompt += "It is mandatory that you provide *some* answer in the ANSWER section. If needed, just take your best guess.\n\n"
+
+    systemprompt += "Good luck."
+
+    return systemprompt
+
+
+def split_gpt_output(gpt_output):
+    matches = re.findall(r"# (.*?)\n(.*?)(?=# |\Z)", gpt_output, re.DOTALL)
+
+    retval = {match[0]: match[1].strip() for match in matches}
+    return retval
+
+
+def extract_gpt_answer(gpt_output):
+    outdict = split_gpt_output(gpt_output)
+
+    has_relevant_token = "RELEVANT" in outdict.get("RELEVANCE", "")
+    has_offtopic_token = "OFFTOPIC" in outdict.get("RELEVANCE", "")
+    if (not has_relevant_token and not has_offtopic_token) or (
+        has_relevant_token and has_offtopic_token
+    ):
+        raise ValueError("Can't have both (or neither) for RELEVANCE")
+
+    if has_offtopic_token:
+        return None
+
+    has_absent_token = "ABSENT" in outdict.get("AVAILABILITY", "")
+    if has_absent_token:
+        return None
+
+    answer = outdict.get("ANSWER")
+    return answer
+
+
+def ask_gpt_question(question, document, document_description):
+    sysprompt = create_systemprompt(
+        question=question, document_description=document_description
+    )
+
+    gpt_messages = [
+        {"role": "system", "content": sysprompt},
+        {"role": "user", "content": document},
+    ]
+
+    responseobj = openai.ChatCompletion.create(
+        messages=gpt_messages, model="gpt-4", temperature=0
+    )
+    # TODO: Check for errors and wrap this in retries.
+    gpt_output = responseobj["choices"][0]["message"]["content"]
+    answer = extract_gpt_answer(gpt_output)
+
+    return answer
+
+
+def extract_dict_from_document(
+    document: str, questions: Iterable[str], document_description: str = None
+):
+    retval = {}
+    for k, v in questions.items():
+        print(k, end="")
+        answer = ask_gpt_question(v, document, document_description)
+        retval[k] = answer
+        print(answer)
+    return retval
 
 
 def determine_datatypes(
@@ -201,75 +308,6 @@ def determine_datatypes(
     return questions
 
 
-def create_systemprompt(question: Question) -> str:
-    systemprompt = ""
-
-    systemprompt += f"""
-I will present a short document to you. You will read this document and then extract a single piece of information from that document. You will be graded on your reasoning process and your ability to justify your answer.
-
-The piece of information I'd like you to extract is: {question.text}
-
-Present your response in Markdown format, using the following multi-part structure: RELEVANCE, AVAILABILITY, DISCUSSION, and ANSWER. Each part will begin with its header, followed by your content.
-
-# RELEVANCE
-Here, you will determine whether or not the desired piece of information is relevant to the subject matter of the document. You will ultimately write, in all caps, either RELEVANT (it's relevant), or OFFTOPIC (it's off-topic).
-
-# AVAILABILITY
-Here, you will determine whether or not the desired information is present in the document. You will ultimately write, in all caps, one of the following: STATED (the information is explicitly stated in the document), IMPLIED (the information is implied by other content in the document), or ABSENT (the information cannot be determined from the document).
-
-# COMPUTATION
-If the problem requires any kind of counting, enumeration, calculation, or so forth, then you can use this section as a scratchpad upon which to work out your math. If the problem doesn't require any such processes, then you can simply skip this section if you wish.
-
-# DISCUSSION
-Here, you will discuss what your final answer will be. You will give arguments about why the answer might be one thing or another.
-
-# ANSWER
-Here, you will state your final answer in a succinct manner, with no other text.
-
-"""
-
-    if question.datatype is not None:
-        systemprompt += "Your final answer in will be written in the following format: "
-        systemprompt += question.instructions_for_my_datatype()
-        systemprompt += "\n\n"
-
-    if question.required:
-        systemprompt += "It is mandatory that you provide *some* answer in the ANSWER section. If needed, just take your best guess.\n\n"
-
-    systemprompt += "Good luck."
-
-    return systemprompt
-
-
-def ask_gpt_question_about_document(question: Question, document: Document):
-    systemprompt = create_systemprompt(question=question)
-    messages = document.to_gpt_messages(systemprompt=systemprompt)
-    print(json.dumps(messages, indent=2))
-
-
-#######################################################################################
-
-
-def text2table(questions, *, documents, document_description: str = ""):
-    questions = Question.create_collection(questions=questions)
-    questions = determine_datatypes(
-        questions=questions,
-        document_description=document_description,
-        openai_client=openai_client,
-    )
-
-    documents = Document.create_collection(
-        documents=documents, document_description=document_description
-    )
-
-    for doc in documents:
-        for question in questions:
-            ask_gpt_question_about_document(question=question, document=doc)
-            exit(0)
-
-
-#######################################################################################
-
 SECRETS = {}
 with open("secrets.json") as f:
     SECRETS = json.load(f)
@@ -277,6 +315,10 @@ with open("secrets.json") as f:
 openai_client = openai.OpenAI(
     api_key=SECRETS["OPENAI_API_KEY"], organization=SECRETS.get("OPENAI_ORGANIZATION")
 )
+
+
+document_description = "A letter from a child to Santa Claus"
+
 
 questions = dict(
     name="What is the child's name?",
@@ -288,10 +330,19 @@ questions = dict(
     present_desired="What present or presents do they want?",
     misspellings_count="How many misspellings or grammatical mistakes did they make?",
 )
+questions = Question.create_collection(questions)
 
-
-retval = text2table(
+questions = determine_datatypes(
     questions=questions,
-    documents=sample_input,
-    document_description="A letter from a child to Santa Claus",
+    document_description=document_description,
+    openai_client=openai_client,
 )
+
+for q in questions:
+    print(q)
+
+# retval = extract_dict_from_document(
+#    sample_input,
+#    questions=questions,
+#    document_description=document_description
+# )
