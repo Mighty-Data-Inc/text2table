@@ -241,16 +241,28 @@ Here, you will state your final answer in a succinct manner, with no other text.
     return systemprompt
 
 
-def ask_gpt_question_about_document(question: Question, document: Document):
+def ask_gpt_question_about_document(
+    question: Question, document: Document, openai_client: openai.OpenAI
+):
     systemprompt = create_systemprompt(question=question)
     messages = document.to_gpt_messages(systemprompt=systemprompt)
-    print(json.dumps(messages, indent=2))
+
+    reply = send_gpt_chat(
+        messages=messages, openai_client=openai_client, model="gpt-4-1106-preview"
+    )
+    print(reply)
 
 
 #######################################################################################
 
 
-def text2table(questions, *, documents, document_description: str = ""):
+def text2table(
+    questions,
+    *,
+    documents,
+    openai_client: openai.OpenAI,
+    document_description: str = "",
+):
     questions = Question.create_collection(questions=questions)
     questions = determine_datatypes(
         questions=questions,
@@ -264,7 +276,9 @@ def text2table(questions, *, documents, document_description: str = ""):
 
     for doc in documents:
         for question in questions:
-            ask_gpt_question_about_document(question=question, document=doc)
+            ask_gpt_question_about_document(
+                question=question, document=doc, openai_client=openai_client
+            )
             exit(0)
 
 
@@ -294,4 +308,5 @@ retval = text2table(
     questions=questions,
     documents=sample_input,
     document_description="A letter from a child to Santa Claus",
+    openai_client=openai_client,
 )
